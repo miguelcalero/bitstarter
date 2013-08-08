@@ -26,14 +26,20 @@ var program = require('commander');
 var cheerio = require('cheerio');
 var HTMLFILE_DEFAULT = "index.html";
 var CHECKSFILE_DEFAULT = "checks.json";
+var rest = require('restler');
 
 var assertFileExists = function(infile) {
     var instr = infile.toString();
     if(!fs.existsSync(instr)) {
         console.log("%s does not exist. Exiting.", instr);
-        process.exit(1); // http://nodejs.org/api/process.html#process_process_exit_code
+        process.exit(1);//http://nodejs.org/api/process.html#process_process_exit_code
     }
     return instr;
+};
+
+var assertUrlExists = function(inurl) {
+    var instr = inurl.toString();
+    console.log("Oki doki:" + instr);
 };
 
 var cheerioHtmlFile = function(htmlfile) {
@@ -55,6 +61,17 @@ var checkHtmlFile = function(htmlfile, checksfile) {
     return out;
 };
 
+var checkUrl = function(url, checksfile) {
+    rest.get(url).on('complete', function(result) {
+	if (result instanceof Error) {
+	   console.log('Error: ' + result.message);
+	    this.retry(5000);
+	} else {
+	    console.log(result);
+	}
+})
+};
+
 var clone = function(fn) {
     // Workaround for commander.js issue.
     // http://stackoverflow.com/a/6772648
@@ -64,10 +81,20 @@ var clone = function(fn) {
 if(require.main == module) {
     program
         .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
-        .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
-        .parse(process.argv);
-    var checkJson = checkHtmlFile(program.file, program.checks);
+        .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists))
+        .option('-u, --url <url_file>','URL to index.html', clone(assertUrlExists))   
+	.parse(process.argv);
+    if (program.url) {
+	console.log("Una url!");
+	var checkJson = checkUrl(program.url, program.checks);
+    } else if (program.file) {
+	var checkJson = checkHtmlFile(program.file, program.checks);
+//	console.log(process.argv);
+    } else {
+	console.log("Nothing to treat!");
+    };
     var outJson = JSON.stringify(checkJson, null, 4);
+    console.log("Un fichero!");
     console.log(outJson);
 } else {
     exports.checkHtmlFile = checkHtmlFile;
